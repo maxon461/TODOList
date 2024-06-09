@@ -45,11 +45,18 @@ class LoginFrame(tk.Frame):
         self.verification_frame.pack_propagate(False)
 
         self.label_verification = tk.Label(self.verification_frame, text="Enter verification code:")
-        self.label_verification.pack()
         self.entry_verification = tk.Entry(self.verification_frame)
-        self.entry_verification.pack()
         self.button_verify = tk.Button(self.verification_frame, text="Verify", command=self.on_verify_click)
-        self.button_verify.pack()
+
+        # Grid layout to center widgets
+        self.verification_frame.grid_rowconfigure(0, weight=1)
+        self.verification_frame.grid_rowconfigure(3, weight=1)
+        self.verification_frame.grid_columnconfigure(0, weight=1)
+        self.verification_frame.grid_columnconfigure(2, weight=1)
+
+        self.label_verification.grid(row=1, column=1, pady=10)
+        self.entry_verification.grid(row=2, column=1, pady=10)
+        self.button_verify.grid(row=3, column=1, pady=10)
 
     def on_register_click(self):
         username = self.entry_username.get()
@@ -75,7 +82,6 @@ class LoginFrame(tk.Frame):
         entered_code = self.entry_verification.get()
 
         if entered_code == self.verification_code:
-
             # Proceed with registration
             if login_process.register_user(self.email, self.entry_password.get()):
                 self.clear_entries()
