@@ -28,7 +28,7 @@ def register_user(username, password):
     try:
         c.execute("INSERT INTO users (username, password) VALUES (?, ?)", (username, password))
         conn.commit()
-        messagebox.showinfo("Success", "Account created successfully!")
+        messagebox.showinfo("Success", "Verification successful. Your account has been registered.")
         return True
     except sqlite3.IntegrityError:
         messagebox.showerror("Error", "Username already exists. Please choose a different one.")
