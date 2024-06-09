@@ -1,11 +1,12 @@
 import tkinter as tk
+from datetime import datetime, timedelta
 from tkinter import messagebox
-from tkinter import ttk
 from PIL import Image, ImageTk, ImageChops
 import sqlite3
 import login_process
 from verification import send_verification_email
 from binance.client import Client
+from p2p import *
 
 def setup_database():
     conn = sqlite3.connect('tasks.db')
@@ -324,8 +325,49 @@ class LoginFrame(tk.Frame):
             messagebox.showerror("Error", f"Failed to retrieve spot balances: {e}")
 
     def p2p_report(self):
-        # Implement functionality to show P2P daily report
-        pass
+        # Get the API key and secret key from the database
+        conn = sqlite3.connect('tasks.db')
+        cursor = conn.cursor()
+        cursor.execute("SELECT api_key, secret_key FROM api_keys WHERE user_id=? AND platform_type=?",
+                       (self.user_id, 'Binance'))
+        keys = cursor.fetchone()
+        conn.close()
+
+        if not keys:
+            messagebox.showerror("Error", "API keys not found.")
+            return
+
+        api_key, secret_key = keys
+        c2c_order_history = get_binance_c2c_order_history(api_key, secret_key)
+        # print(c2c_order_history)
+        if c2c_order_history:
+            # Parse orders
+            c2c_order_data = c2c_order_history.get("data", [])
+            parsed_orders = []
+            yesterday = (datetime.today() - timedelta(days=1)).date()  # Get yesterday's date
+
+            for order_info in c2c_order_data:
+                create_time_milliseconds = order_info.get("createTime")
+                create_time_seconds = create_time_milliseconds / 1000
+                create_time = datetime.utcfromtimestamp(create_time_seconds + 3600)
+
+                # Check if the order was created yesterday
+                if create_time.date() == yesterday:
+                    parsed_order = {
+                        "orderStatus": order_info.get("orderStatus"),
+                        "totalPrice": order_info.get("totalPrice"),
+                        "tradeType": order_info.get("tradeType"),
+                        "createTime": create_time.strftime('%Y-%m-%d %H:%M:%S')  # Convert to human-readable format
+                    }
+                    parsed_orders.append(parsed_order)
+
+            profit = count_profit(parsed_orders)
+            # Save parsed orders to Excel file
+            buy_orders, sell_orders = separate_buy_sell(parsed_orders)
+            save_to_excel(buy_orders, sell_orders, profit, f"P2P_History_Yesterday{self.platform_type}.xlsx")
+            messagebox.showinfo("Success!", "Parsed orders saved to P2P_History_Yesterday.xlsx")
+        else:
+            messagebox.showerror("Error", "Failed to retrieve order history")
 
     def on_register_click(self):
         username = self.entry_username.get()
