@@ -5,8 +5,38 @@ from PIL import Image, ImageTk, ImageChops
 import sqlite3
 import login_process
 from verification import send_verification_email
-from databases import setup_database
+from binance.client import Client
 
+def setup_database():
+    conn = sqlite3.connect('tasks.db')
+    cursor = conn.cursor()
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT UNIQUE,
+            password TEXT
+        )
+    ''')
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS tasks (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER,
+            task TEXT,
+            FOREIGN KEY(user_id) REFERENCES users(id)
+        )
+    ''')
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS api_keys (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER,
+            platform_type TEXT,
+            api_key TEXT,
+            secret_key TEXT,
+            FOREIGN KEY(user_id) REFERENCES users(id)
+        )
+    ''')
+    conn.commit()
+    conn.close()
 
 class LoginFrame(tk.Frame):
     def __init__(self, master=None):
@@ -23,7 +53,6 @@ class LoginFrame(tk.Frame):
     def create_widgets(self):
         # Main frame (start frame) widgets
         # --------------------------------------------------------------
-
 
         self.start_frame = tk.Frame(self, width=1000, height=500, bg='#1e1e1e')
         self.start_frame.pack_propagate(False)
@@ -80,7 +109,7 @@ class LoginFrame(tk.Frame):
         # --------------------------------------------------------------
 
         # Task management frame (hidden initially)
-
+        # --------------------------------------------------------------
 
         self.task_frame = tk.Frame(self, width=1000, height=500, bg='#1e1e1e')
         self.task_frame.pack_propagate(False)
@@ -163,9 +192,39 @@ class LoginFrame(tk.Frame):
         self.button_back_to_list_from_api = tk.Button(self.api_key_frame, text="Back to List", command=self.back_to_list, bg='#007acc', fg='black')
         self.button_back_to_list_from_api.pack(pady=10)
 
+        # --------------------------------------------------------------
+
+        # Action selection frame (hidden initially)
+        # --------------------------------------------------------------
+        self.action_frame = tk.Frame(self, width=1000, height=500, bg='#1e1e1e')
+        self.action_frame.pack_propagate(False)
+
+        self.label_action = tk.Label(self.action_frame, text="Choose your Action", font=("Helvetica", 20), fg='#d4d4d4', bg='#1e1e1e')
+        self.label_action.grid(row=0, column=0, columnspan=2, pady=10)
+
+        # Spot value of crypto section with Entry
+        self.label_spot_value = tk.Button(self.action_frame, text="Spot value of crypto", command=self.spot_value,  bg='#007acc', fg='black')
+        self.label_spot_value.grid(row=1, column=0, padx=10, pady=10, sticky='w')
+
+        self.entry_currency = tk.Entry(self.action_frame, bg='#3c3c3c', fg='#d4d4d4', insertbackground='white')
+        self.entry_currency.grid(row=1, column=1, padx=10, pady=10, sticky='e')
+
+        # My spot balance button
+        self.button_spot_balance = tk.Button(self.action_frame, text="My spot balance", command=self.spot_balance, bg='#007acc', fg='black')
+        self.button_spot_balance.grid(row=2, column=0, columnspan=2, pady=10, sticky='ew')
+
+        # P2P daily report button
+        self.button_p2p_report = tk.Button(self.action_frame, text="P2P daily report", command=self.p2p_report, bg='#007acc', fg='black')
+        self.button_p2p_report.grid(row=3, column=0, columnspan=2, pady=10, sticky='ew')
+
+
+        self.button_back_to_list_from_action = tk.Button(self.action_frame, text="Back to List", command=self.back_to_list, bg='#007acc', fg='black')
+        self.button_back_to_list_from_action.grid(row=4, column=0, columnspan=2, pady=10, sticky='ew')
+
     def back_to_list(self):
         self.crypto_frame.pack_forget()
         self.api_key_frame.pack_forget()
+        self.action_frame.pack_forget()
         self.task_frame.pack()
 
     def show_crypto_frame(self):
@@ -185,7 +244,7 @@ class LoginFrame(tk.Frame):
 
         if keys:
             messagebox.showinfo("Info", f"API keys for {platform} already exist.")
-            self.task_frame.pack()
+            self.show_action_frame()
         else:
             self.api_key_frame.pack()
 
@@ -202,7 +261,71 @@ class LoginFrame(tk.Frame):
 
         messagebox.showinfo("Success", "API keys saved successfully.")
         self.api_key_frame.pack_forget()
-        self.task_frame.pack()
+        self.show_action_frame()
+
+    def show_action_frame(self):
+        self.action_frame.pack()
+
+    def spot_value(self):
+        coin_name = self.entry_currency.get().upper()
+        if not coin_name:
+            messagebox.showerror("Error", "Please enter a valid coin name.")
+            return
+
+        # Get the API key and secret key from the database
+        conn = sqlite3.connect('tasks.db')
+        cursor = conn.cursor()
+        cursor.execute("SELECT api_key, secret_key FROM api_keys WHERE user_id=? AND platform_type=?", (self.user_id, 'Binance'))
+        keys = cursor.fetchone()
+        conn.close()
+
+        if not keys:
+            messagebox.showerror("Error", "API keys not found.")
+            return
+
+        api_key, secret_key = keys
+        client = Client(api_key, secret_key)
+
+        try:
+            symbol = f"{coin_name}USDT"
+            ticker = client.get_symbol_ticker(symbol=symbol)
+            price = ticker['price']
+            messagebox.showinfo("Spot Value", f"The spot value of {coin_name} is {price} USDT.")
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to retrieve spot value: {e}")
+
+    def spot_balance(self):
+        # Get the API key and secret key from the database
+        conn = sqlite3.connect('tasks.db')
+        cursor = conn.cursor()
+        cursor.execute("SELECT api_key, secret_key FROM api_keys WHERE user_id=? AND platform_type=?",
+                       (self.user_id, 'Binance'))
+        keys = cursor.fetchone()
+        conn.close()
+
+        if not keys:
+            messagebox.showerror("Error", "API keys not found.")
+            return
+
+        api_key, secret_key = keys
+        client = Client(api_key, secret_key)
+
+        try:
+            account_info = client.get_account()
+            balances = account_info['balances']
+            spot_balances = {balance['asset']: balance['free'] for balance in balances if float(balance['free']) > 0}
+
+            if spot_balances:
+                balance_info = "\n".join([f"{asset}: {amount}" for asset, amount in spot_balances.items()])
+                messagebox.showinfo("Spot Balances", balance_info)
+            else:
+                messagebox.showinfo("Spot Balances", "No balances available.")
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to retrieve spot balances: {e}")
+
+    def p2p_report(self):
+        # Implement functionality to show P2P daily report
+        pass
 
     def on_register_click(self):
         username = self.entry_username.get()
