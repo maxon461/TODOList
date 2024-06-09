@@ -38,9 +38,6 @@ def register_user(username, password):
 
 # Function to authenticate user login
 def login_user(username, password):
-    if not validate_email(username):
-        messagebox.showerror("Error", "Please enter a valid email address.")
-        return False
 
     conn = sqlite3.connect('users.db')
     c = conn.cursor()
