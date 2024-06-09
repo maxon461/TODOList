@@ -5,28 +5,8 @@ from PIL import Image, ImageTk, ImageChops
 import sqlite3
 import login_process
 from verification import send_verification_email
+from databases import setup_database
 
-# Database setup
-def setup_database():
-    conn = sqlite3.connect('tasks.db')
-    cursor = conn.cursor()
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            username TEXT UNIQUE,
-            password TEXT
-        )
-    ''')
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS tasks (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER,
-            task TEXT,
-            FOREIGN KEY(user_id) REFERENCES users(id)
-        )
-    ''')
-    conn.commit()
-    conn.close()
 
 class LoginFrame(tk.Frame):
     def __init__(self, master=None):
@@ -37,10 +17,14 @@ class LoginFrame(tk.Frame):
         self.pack()
         self.user_id = None  # Store the logged-in user's ID
         self.selected_task_text = None  # Store the text of the currently selected task
+        self.platform_type = None  # Store the selected platform type
         self.create_widgets()
 
     def create_widgets(self):
         # Main frame (start frame) widgets
+        # --------------------------------------------------------------
+
+
         self.start_frame = tk.Frame(self, width=1000, height=500, bg='#1e1e1e')
         self.start_frame.pack_propagate(False)
         self.start_frame.pack()
@@ -72,7 +56,11 @@ class LoginFrame(tk.Frame):
         self.label_image = tk.Label(self.start_frame, image=self.maxauto_image, bg='#1e1e1e')
         self.label_image.place(relx=1.0, rely=1, anchor="se")
 
+        # --------------------------------------------------------------
+
         # Verification frame widgets (hidden initially)
+        # --------------------------------------------------------------
+
         self.verification_frame = tk.Frame(self, width=1000, height=500, bg='#1e1e1e')
         self.verification_frame.pack_propagate(False)
 
@@ -89,32 +77,132 @@ class LoginFrame(tk.Frame):
         self.entry_verification.grid(row=2, column=1, pady=10)
         self.button_verify.grid(row=3, column=1, pady=10)
 
+        # --------------------------------------------------------------
+
         # Task management frame (hidden initially)
+
+
         self.task_frame = tk.Frame(self, width=1000, height=500, bg='#1e1e1e')
         self.task_frame.pack_propagate(False)
 
+        # Layout with grid
+        self.task_frame.grid_rowconfigure(0, weight=1)
+        self.task_frame.grid_columnconfigure(0, weight=1)
+        self.task_frame.grid_columnconfigure(1, weight=1)
+
         self.label_tasks = tk.Label(self.task_frame, text="Your Tasks", font=("Helvetica", 20), fg='#d4d4d4', bg='#1e1e1e')
-        self.label_tasks.pack(pady=10)
+        self.label_tasks.grid(row=0, column=0, sticky="w", padx=10, pady=10)
+
+        self.button_crypto = tk.Button(self.task_frame, text="CRYPTO", command=self.show_crypto_frame, bg='#007acc', fg='black')
+        self.button_crypto.grid(row=0, column=1, sticky="e", padx=10, pady=10)
 
         # Frame for task list
         self.task_list_frame = tk.Frame(self.task_frame, bg='#1e1e1e')
-        self.task_list_frame.pack(pady=10, fill=tk.BOTH, expand=True)
+        self.task_list_frame.grid(row=1, column=0, columnspan=2, pady=10, sticky="nsew")
 
         # Frame for task entry and buttons
         self.task_entry_frame = tk.Frame(self.task_frame, bg='#1e1e1e')
-        self.task_entry_frame.pack(fill=tk.X, pady=10)
+        self.task_entry_frame.grid(row=2, column=0, columnspan=2, pady=10, sticky="ew")
 
         self.entry_task = tk.Entry(self.task_entry_frame, bg='#3c3c3c', fg='#d4d4d4', insertbackground='white')
-        self.entry_task.pack(side=tk.LEFT, padx=5, pady=5, expand=True, fill=tk.X)
+        self.entry_task.grid(row=0, column=0, padx=5, pady=5, sticky="ew")
 
         self.button_add_task = tk.Button(self.task_entry_frame, text="Add Task", command=self.add_task, bg='#007acc', fg='black')
-        self.button_add_task.pack(side=tk.LEFT, padx=5, pady=5)
+        self.button_add_task.grid(row=0, column=1, padx=5, pady=5)
 
         self.button_delete_task = tk.Button(self.task_entry_frame, text="Delete Task", command=self.delete_task, bg='#007acc', fg='black')
-        self.button_delete_task.pack(side=tk.LEFT, padx=5, pady=5)
+        self.button_delete_task.grid(row=0, column=2, padx=5, pady=5)
 
         self.button_logout = tk.Button(self.task_entry_frame, text="Logout", command=self.logout, bg='#007acc', fg='black')
-        self.button_logout.pack(side=tk.LEFT, padx=5, pady=5)
+        self.button_logout.grid(row=0, column=3, padx=5, pady=5, sticky="e")
+
+        self.task_entry_frame.grid_columnconfigure(0, weight=1)
+
+        # --------------------------------------------------------------
+
+        # Crypto frame (hidden initially)
+        # --------------------------------------------------------------
+        self.crypto_frame = tk.Frame(self, width=1000, height=500, bg='#1e1e1e')
+        self.crypto_frame.pack_propagate(False)
+
+        self.label_crypto = tk.Label(self.crypto_frame, text="Choose your Platform", font=("Helvetica", 20), fg='#d4d4d4', bg='#1e1e1e')
+        self.label_crypto.pack(pady=10)
+
+        self.button_okx = tk.Button(self.crypto_frame, text="OKX", command=lambda: self.choose_platform("OKX"), bg='#007acc', fg='black')
+        self.button_okx.pack(pady=10)
+
+        self.button_binance = tk.Button(self.crypto_frame, text="Binance", command=lambda: self.choose_platform("Binance"), bg='#007acc', fg='black')
+        self.button_binance.pack(pady=10)
+
+        self.button_back_to_list_from_crypto = tk.Button(self.crypto_frame, text="Back to List", command=self.back_to_list, bg='#007acc', fg='black')
+        self.button_back_to_list_from_crypto.pack(pady=10)
+
+        # --------------------------------------------------------------
+
+        # API key frame (hidden initially)
+        # --------------------------------------------------------------
+        self.api_key_frame = tk.Frame(self, width=1000, height=500, bg='#1e1e1e')
+        self.api_key_frame.pack_propagate(False)
+
+        self.label_api = tk.Label(self.api_key_frame, text="Provide your API and Secret Key", font=("Helvetica", 20), fg='#d4d4d4', bg='#1e1e1e')
+        self.label_api.pack(pady=10)
+
+        self.label_api_key = tk.Label(self.api_key_frame, text="API Key:", fg='#d4d4d4', bg='#1e1e1e')
+        self.label_api_key.pack()
+        self.entry_api_key = tk.Entry(self.api_key_frame, bg='#3c3c3c', fg='#d4d4d4', insertbackground='white')
+        self.entry_api_key.pack()
+
+        self.label_secret_key = tk.Label(self.api_key_frame, text="Secret Key:", fg='#d4d4d4', bg='#1e1e1e')
+        self.label_secret_key.pack()
+        self.entry_secret_key = tk.Entry(self.api_key_frame, bg='#3c3c3c', fg='#d4d4d4', insertbackground='white')
+        self.entry_secret_key.pack()
+
+        self.button_save_keys = tk.Button(self.api_key_frame, text="Save Keys", command=self.save_api_keys, bg='#007acc', fg='black')
+        self.button_save_keys.pack(pady=10)
+
+        self.button_back_to_list_from_api = tk.Button(self.api_key_frame, text="Back to List", command=self.back_to_list, bg='#007acc', fg='black')
+        self.button_back_to_list_from_api.pack(pady=10)
+
+    def back_to_list(self):
+        self.crypto_frame.pack_forget()
+        self.api_key_frame.pack_forget()
+        self.task_frame.pack()
+
+    def show_crypto_frame(self):
+        self.task_frame.pack_forget()
+        self.crypto_frame.pack()
+
+    def choose_platform(self, platform):
+        self.platform_type = platform
+        self.crypto_frame.pack_forget()
+
+        # Check if API keys exist for this user and platform
+        conn = sqlite3.connect('tasks.db')
+        cursor = conn.cursor()
+        cursor.execute("SELECT api_key, secret_key FROM api_keys WHERE user_id=? AND platform_type=?", (self.user_id, self.platform_type))
+        keys = cursor.fetchone()
+        conn.close()
+
+        if keys:
+            messagebox.showinfo("Info", f"API keys for {platform} already exist.")
+            self.task_frame.pack()
+        else:
+            self.api_key_frame.pack()
+
+    def save_api_keys(self):
+        api_key = self.entry_api_key.get()
+        secret_key = self.entry_secret_key.get()
+
+        conn = sqlite3.connect('tasks.db')
+        cursor = conn.cursor()
+        cursor.execute("INSERT INTO api_keys (user_id, platform_type, api_key, secret_key) VALUES (?, ?, ?, ?)",
+                       (self.user_id, self.platform_type, api_key, secret_key))
+        conn.commit()
+        conn.close()
+
+        messagebox.showinfo("Success", "API keys saved successfully.")
+        self.api_key_frame.pack_forget()
+        self.task_frame.pack()
 
     def on_register_click(self):
         username = self.entry_username.get()
@@ -150,10 +238,6 @@ class LoginFrame(tk.Frame):
     def on_login_click(self):
         username = self.entry_username.get()
         password = self.entry_password.get()
-
-        # if not login_process.validate_email(username):
-        #     messagebox.showerror("Error", "Please enter a valid email address.")
-        #     return
 
         user_id = login_process.login_user(username, password)
         if user_id:
