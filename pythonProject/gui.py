@@ -7,37 +7,8 @@ import login_process
 from verification import send_verification_email
 from binance.client import Client
 from p2p import *
+from databases import setup_database
 
-def setup_database():
-    conn = sqlite3.connect('tasks.db')
-    cursor = conn.cursor()
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            username TEXT UNIQUE,
-            password TEXT
-        )
-    ''')
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS tasks (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER,
-            task TEXT,
-            FOREIGN KEY(user_id) REFERENCES users(id)
-        )
-    ''')
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS api_keys (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER,
-            platform_type TEXT,
-            api_key TEXT,
-            secret_key TEXT,
-            FOREIGN KEY(user_id) REFERENCES users(id)
-        )
-    ''')
-    conn.commit()
-    conn.close()
 
 class LoginFrame(tk.Frame):
     def __init__(self, master=None):
@@ -48,7 +19,7 @@ class LoginFrame(tk.Frame):
         self.pack()
         self.user_id = None  # Store the logged-in user's ID
         self.selected_task_text = None  # Store the text of the currently selected task
-        self.platform_type = None  # Store the selected platform type
+        self.platform_type = None
         self.create_widgets()
 
     def create_widgets(self):
