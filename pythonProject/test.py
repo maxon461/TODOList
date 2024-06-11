@@ -17,7 +17,6 @@ def create_signature(timestamp, method, request_path, body, secret_key):
     return signature
 
 
-p
 def get_timestamp():
     return str(int(time.time()))
 

@@ -14,7 +14,7 @@ class LoginFrame(tk.Frame):
     def __init__(self, master=None):
         super().__init__(master, width=1000, height=500, bg='#1e1e1e')
         self.master = master
-        self.master.title("Login and Register")
+        self.master.title("TODO in crypto")
         self.pack_propagate(False)
         self.pack()
         self.user_id = None  # Store the logged-in user's ID
@@ -129,7 +129,7 @@ class LoginFrame(tk.Frame):
         self.label_crypto = tk.Label(self.crypto_frame, text="Choose your Platform", font=("Helvetica", 20), fg='#d4d4d4', bg='#1e1e1e')
         self.label_crypto.pack(pady=10)
 
-        self.button_okx = tk.Button(self.crypto_frame, text="OKX", command=lambda: self.choose_platform("OKX"), bg='#007acc', fg='black')
+        self.button_okx = tk.Button(self.crypto_frame, text="//OKX", command=lambda: self.choose_platform("OKX"), bg='#007acc', fg='black')
         self.button_okx.pack(pady=10)
 
         self.button_binance = tk.Button(self.crypto_frame, text="Binance", command=lambda: self.choose_platform("Binance"), bg='#007acc', fg='black')
@@ -213,6 +213,8 @@ class LoginFrame(tk.Frame):
         cursor.execute("SELECT api_key, secret_key FROM api_keys WHERE user_id=? AND platform_type=?", (self.user_id, self.platform_type))
         keys = cursor.fetchone()
         conn.close()
+        self.entry_api_key.delete(0, tk.END)
+        self.entry_secret_key.delete(0, tk.END)
 
         if keys:
             messagebox.showinfo("Info", f"API keys for {platform} already exist.")
