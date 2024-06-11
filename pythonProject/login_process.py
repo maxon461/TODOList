@@ -9,7 +9,7 @@ def validate_email(email):
 
 # Function to validate password format
 def validate_password(password):
-    # At least 8 characters, one capital letter, and one number
+
     return len(password) >= 8 and any(char.isupper() for char in password) and any(char.isdigit() for char in password)
 
 # Function to create a new user account
@@ -21,7 +21,7 @@ def register_user(username, password):
         messagebox.showerror("Error", "Password must be at least 8 characters long and contain at least one capital letter and one number.")
         return False
 
-    conn = sqlite3.connect('users.db')
+    conn = sqlite3.connect('tasks.db')
     c = conn.cursor()
     c.execute('''CREATE TABLE IF NOT EXISTS users
                  (username TEXT PRIMARY KEY, password TEXT)''')
@@ -39,7 +39,7 @@ def register_user(username, password):
 # Function to authenticate user login
 def login_user(username, password):
 
-    conn = sqlite3.connect('users.db')
+    conn = sqlite3.connect('tasks.db')
     c = conn.cursor()
     c.execute("SELECT * FROM users WHERE username=? AND password=?", (username, password))
     if c.fetchone() is not None:

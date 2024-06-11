@@ -83,11 +83,11 @@ def save_to_excel(buy_orders, sell_orders, profit, filename):
         for j, value in enumerate(row, start=1):
             ws.cell(row=i, column=j+7, value=value)
 
-    # Write profit for sell orders
+
     ws.cell(row=1, column=13, value="Profit")
     ws.cell(row=2, column=13, value=profit)
 
-    # Save workbook to Excel file
+
     wb.save(filename)
 
 

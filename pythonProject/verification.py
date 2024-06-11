@@ -12,13 +12,13 @@ def send_verification_email(email):
     # Generate a random verification code
     verification_code = str(random.randint(100000, 999999))
 
-    # Email content
+
     sender_email = "vasmoto00@gmail.com"
     receiver_email = email
     subject = "Email Verification"
     body = f"Your verification code is: {verification_code}"
 
-    # Setup the email message
+
     message = MIMEMultipart()
     message["From"] = sender_email
     message["To"] = receiver_email
@@ -34,4 +34,3 @@ def send_verification_email(email):
 
     return verification_code
 
-# Example usage
